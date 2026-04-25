@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "Node16",
     "declaration": true,
     "outDir": "./dist",
     "strict": false,
@@ -11,10 +11,14 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
+    "rootDir": "./src",
     "incremental": true,
-    "baseUrl": "./",
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "node",
+    "baseUrl": "./",
+    "paths": {
+      "src/*": ["src/*"]
+    },
+    "moduleResolution": "node16",
     "types": ["node", "jest"],
     "removeComments": true,
     "strictNullChecks": false,
@@ -25,7 +29,8 @@
     "noImplicitThis": false,
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": false,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "ignoreDeprecations": "6.0"
   },
   "exclude": ["node_modules", "dist", "cypress", "test-data", "coverage", "test-reports", "**/*.spec.ts", "**/*.test.ts", "test"]
 }

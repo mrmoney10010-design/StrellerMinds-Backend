@@ -1,0 +1,48 @@
+name: Dependency Scanning
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+jobs:
+  npm-audit:
+    name: npm audit (fail on high+)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+      - run: npm ci
+      - name: Run npm audit (fail on high and above)
+        run: |
+          set -e
+          npm audit --audit-level=high || (echo "::error::Vulnerabilities at or above 'high' severity found" && exit 1)
+
+  snyk:
+    name: Snyk scan (optional)
+    needs: npm-audit
+    if: ${{ secrets.SNYK_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm ci
+      - name: Snyk test
+        uses: snyk/actions@master
+        with:
+          command: test
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Snyk monitor
+        uses: snyk/actions@master
+        with:
+          command: monitor
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
