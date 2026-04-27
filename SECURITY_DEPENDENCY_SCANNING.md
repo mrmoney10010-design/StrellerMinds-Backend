@@ -1,30 +1,29 @@
 Dependency scanning and automatic remediation
 =========================================
 
-This repository uses a combination of Dependabot and GitHub Actions (and optionally Snyk) to detect and remediate dependency vulnerabilities.
+This repository uses Dependabot plus a GitHub Actions scan to detect dependency vulnerabilities and automatically open remediation PRs.
 
 What I added
-- Dependabot config: `.github/dependabot.yml` — creates daily PRs for npm and GitHub Actions updates.
-- CI scan: `.github/workflows/dependency-scan.yml` — runs `npm audit` on every push and PR and fails the build when vulnerabilities at or above `high` are detected. If you add a `SNYK_TOKEN` secret, the workflow also runs `snyk test` and `snyk monitor`.
-- Auto-merge: `.github/workflows/auto-merge-dependabot.yml` — attempts to auto-merge Dependabot PRs when checks pass.
+- Dependabot config: `.github/dependabot.yml` — creates weekly PRs for `npm` and `github-actions` updates.
+- CI scan: `.github/workflows/dependency-scan.yml` — runs `npm audit` on every push and PR and fails the build when vulnerabilities at or above `high` are detected. If a `SNYK_TOKEN` secret is configured the workflow will also run a Snyk test (additional coverage) and fail the job for high/critical findings.
 
 Required repository secrets
-- `SNYK_TOKEN` — (optional) API token for Snyk. Add this in the repository Settings → Secrets to enable Snyk scans.
+- `SNYK_TOKEN` — (optional) API token for Snyk. Add this in the repository Settings → Secrets to enable Snyk scans in CI.
 
 Policies and behavior
-- Build failing threshold: `npm audit` is run with `--audit-level=high`. Any `high` or `critical` findings will fail CI.
-- Dependabot PRs are created daily; the auto-merge workflow will merge Dependabot PRs if all checks succeed and the PR author is Dependabot.
+- Build failing threshold: `npm audit` is executed with `--audit-level=high`. Any `high` or `critical` findings will cause the CI job to exit non-zero and fail the check.
+- Dependabot PRs are created weekly by default. They will include automated labels so contributors can filter and triage them quickly.
 
 Recommendations / next steps for the team
-- Review and add `SNYK_TOKEN` secret to enable Snyk (recommended for additional coverage).
-- Configure branch protection rules to require CI checks (so auto-merge only occurs after passing checks).
-- Review Dependabot PRs and set the `open-pull-requests-limit` in `.github/dependabot.yml` if needed.
-- If you want stricter thresholds, edit `.github/workflows/dependency-scan.yml` and change `--audit-level` to `moderate` or `low`.
+- Add the `SNYK_TOKEN` secret (recommended) to get Snyk's vulnerability intelligence in CI.
+- Configure branch-protection rules to require these CI checks on pull requests.
+- Review Dependabot PRs and adjust `open-pull-requests-limit` in `.github/dependabot.yml` if you want fewer concurrent updates.
+- If you need stricter thresholds change the `--audit-level` value in `.github/workflows/dependency-scan.yml`.
 
 How to disable or tune
 - To change update frequency or ecosystems, edit `.github/dependabot.yml`.
-- To disable the Snyk job, remove the `SNYK_TOKEN` secret or delete the `snyk` job.
+- To disable the Snyk job, remove the `SNYK_TOKEN` secret or delete the `snyk` job from the workflow.
 
 If you want, I can also:
-- Add a Dependabot configuration that automatically groups minor/patch updates.
-- Add label-based rules or require human review before auto-merge.
+- Add grouping rules for Dependabot to combine related updates into a single PR.
+- Add an auto-merge workflow for Dependabot PRs (requires branch protection configuration) or create labels and reviewers for PR triage.
