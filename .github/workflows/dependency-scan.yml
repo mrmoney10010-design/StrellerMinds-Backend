@@ -1,102 +1,89 @@
-name: Dependency Scan
-
-on:
-  push:
-    branches: [ main, master, develop ]
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-jobs:
-  npm-audit:
-    name: npm audit (fail on high/critical)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run npm audit
-        run: |
-          # Fail the job if any high or critical vulnerabilities are found
-          npm audit --audit-level=high
-
-  snyk:
-    name: Snyk vulnerability scan (optional)
-    needs: npm-audit
-    runs-on: ubuntu-latest
-    if: ${{ secrets.SNYK_TOKEN != '' }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Snyk test
-        uses: snyk/actions/test@v1
-        with:
-          # Fail the job for high+ severity issues
-          args: --severity-threshold=high
-          fail-on: high
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 name: Dependency Scanning
 
 on:
   push:
     branches:
-      - '**'
+      - main
+      - master
+      - develop
   pull_request:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Run daily at 03:00 UTC for continuous vulnerability checks
+    - cron: "0 3 * * *"
+  workflow_dispatch:
 
 jobs:
   npm-audit:
-    name: npm audit (fail on high+)
+    name: npm audit (block high/critical)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'npm'
-      - run: npm ci
-      - name: Run npm audit (fail on high and above)
-        run: |
-          set -e
-          npm audit --audit-level=high || (echo "::error::Vulnerabilities at or above 'high' severity found" && exit 1)
+          node-version: 20
+          cache: "npm"
 
-  snyk:
-    name: Snyk scan (optional)
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: npm audit (high+ threshold)
+        run: npm audit --audit-level=high
+
+  snyk-test:
+    name: Snyk test (block high/critical)
     needs: npm-audit
     if: ${{ secrets.SNYK_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
-      - run: npm ci
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
       - name: Snyk test
-        uses: snyk/actions@master
-        with:
-          command: test
+        uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  snyk-monitor:
+    name: Snyk monitor (continuous alerts)
+    needs: snyk-test
+    if: ${{ github.event_name != 'pull_request' && secrets.SNYK_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
       - name: Snyk monitor
-        uses: snyk/actions@master
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: monitor
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
